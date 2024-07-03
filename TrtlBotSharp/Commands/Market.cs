@@ -2,109 +2,83 @@
 using Discord.Commands;
 using Newtonsoft.Json.Linq;
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace TrtlBotSharp
 {
     public partial class Commands : ModuleBase<SocketCommandContext>
     {
-        private readonly HttpClient _httpClient;
-
-        public Commands(HttpClient httpClient)
-        {
-            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        }
-
         [Command("price")]
         public async Task PriceAsync([Remainder]string Remainder = "")
         {
-            try
+            // Get current coin price
+            JObject CoinPrice = Request.GET(TrtlBotSharp.marketEndpoint);
+            if (CoinPrice.Count < 1)
             {
-                // CoinGecko API endpoint for traaitt
-                string apiUrl = "https://api.coingecko.com/api/v3/simple/price";
-                string coinId = "traaitt"; // Replace with actual CoinGecko ID for traaitt
-                string vsCurrency = "usd"; // USD as an example, you can change to other currencies
-
-                // Parameters for the request
-                string url = $"{apiUrl}?ids={coinId}&vs_currencies={vsCurrency}";
-
-                // Send GET request to CoinGecko
-                HttpResponseMessage response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    // Parse response JSON
-                    string responseBody = await response.Content.ReadAsStringAsync();
-                    JObject coinData = JObject.Parse(responseBody);
-
-                    // Extract necessary data
-                    decimal price = (decimal)coinData[coinId][vsCurrency];
-
-                    // Build embed response
-                    var responseEmbed = new EmbedBuilder()
-                        .WithTitle($"Current Price of {TrtlBotSharp.coinSymbol}")
-                        .WithUrl(url)
-                        .AddField("Current Price", $"{price} {vsCurrency.ToUpper()}");
-
-                    // Send reply
-                    await ReplyAsync("", false, responseEmbed.Build());
-                }
-                else
-                {
-                    await ReplyAsync($"Failed to retrieve data from CoinGecko API. Status code: {response.StatusCode}");
-                }
+                await ReplyAsync("Failed to connect to " + TrtlBotSharp.marketSource);
+                return;
             }
-            catch (Exception ex)
+
+            // Get current BTC price
+            JObject BTCPrice = Request.GET(TrtlBotSharp.marketBTCEndpoint);
+            if (BTCPrice.Count < 1)
             {
-                await ReplyAsync($"An error occurred: {ex.Message}");
+                await ReplyAsync("Failed to connect to " + TrtlBotSharp.marketBTCEndpoint);
+                return;
             }
+
+            // Begin building a response
+            var Response = new EmbedBuilder();
+            Response.WithTitle("Current Price of TRTL: " + TrtlBotSharp.marketSource);
+            Response.WithUrl(TrtlBotSharp.marketEndpoint);
+            Response.AddInlineField("Low", string.Format("{0} sats", Math.Round((decimal)CoinPrice["low"] * 100000000)));
+            Response.AddInlineField("Current", string.Format("{0} sats", Math.Round((decimal)CoinPrice["price"] * 100000000)));
+            Response.AddInlineField("High", string.Format("{0} sats", Math.Round((decimal)CoinPrice["high"] * 100000000)));
+            Response.AddInlineField(TrtlBotSharp.coinSymbol + "-USD", string.Format("${0:N5} USD", (decimal)CoinPrice["price"] * (decimal)BTCPrice["last"]));
+            Response.AddInlineField("Volume", string.Format("{0:N} BTC", (decimal)CoinPrice["volume"]));
+            Response.AddInlineField("BTC-USD", string.Format("{0:C} USD", (decimal)BTCPrice["last"]));
+
+            // Send reply
+            if (Context.Guild != null && TrtlBotSharp.marketDisallowedServers.Contains(Context.Guild.Id))
+            {
+                try { await Context.Message.DeleteAsync(); }
+                catch { }
+                await Context.Message.Author.SendMessageAsync("", false, Response);
+            }
+            else await ReplyAsync("", false, Response);
         }
 
         [Command("mcap")]
         public async Task MarketCapAsync([Remainder]string Remainder = "")
         {
-            try
+            // Get current coin price
+            JObject CoinPrice = Request.GET(TrtlBotSharp.marketEndpoint);
+            if (CoinPrice.Count < 1)
             {
-                // CoinGecko API endpoint for traaitt
-                string apiUrl = "https://api.coingecko.com/api/v3/simple/price";
-                string coinId = "traaitt"; // Replace with actual CoinGecko ID for traaitt
-                string vsCurrency = "usd"; // USD as an example, you can change to other currencies
-
-                // Parameters for the request
-                string url = $"{apiUrl}?ids={coinId}&vs_currencies={vsCurrency}";
-
-                // Send GET request to CoinGecko
-                HttpResponseMessage response = await _httpClient.GetAsync(url);
-
-                if (response.IsSuccessStatusCode)
-                {
-                    // Parse response JSON
-                    string responseBody = await response.Content.ReadAsStringAsync();
-                    JObject coinData = JObject.Parse(responseBody);
-
-                    // Extract necessary data
-                    decimal price = (decimal)coinData[coinId][vsCurrency];
-                    decimal supply = TrtlBotSharp.GetSupply(); // Assuming GetSupply() method exists
-
-                    // Calculate market cap
-                    decimal marketCap = price * supply;
-
-                    // Build response
-                    string responseMessage = $"{TrtlBotSharp.coinName}'s market cap is **{marketCap:C}** {vsCurrency.ToUpper()}";
-
-                    // Send reply
-                    await ReplyAsync(responseMessage);
-                }
-                else
-                {
-                    await ReplyAsync($"Failed to retrieve data from CoinGecko API. Status code: {response.StatusCode}");
-                }
+                await ReplyAsync("Failed to connect to " + TrtlBotSharp.marketSource);
+                return;
             }
-            catch (Exception ex)
+
+            // Get current BTC price
+            JObject BTCPrice = Request.GET(TrtlBotSharp.marketBTCEndpoint);
+            if (BTCPrice.Count < 1)
             {
-                await ReplyAsync($"An error occurred: {ex.Message}");
+                await ReplyAsync("Failed to connect to " + TrtlBotSharp.marketBTCEndpoint);
+                return;
             }
+
+            // Begin building a response
+            string Response = string.Format("{0}'s market cap is **{1:c}** USD", TrtlBotSharp.coinName,
+                (decimal)CoinPrice["price"] * (decimal)BTCPrice["last"] * TrtlBotSharp.GetSupply());
+
+            // Send reply
+            if (Context.Guild != null && TrtlBotSharp.marketDisallowedServers.Contains(Context.Guild.Id))
+            {
+                try { await Context.Message.DeleteAsync(); }
+                catch { }
+                await Context.Message.Author.SendMessageAsync(Response);
+            }
+            else await ReplyAsync(Response);
         }
     }
 }
