@@ -301,7 +301,7 @@ namespace TrtlBotSharp
             // Check if an address is specified instead of mentioned users
             string Address = "";
             if (Remainder.StartsWith(TrtlBotSharp.coinAddressPrefix) && Remainder.Length == TrtlBotSharp.coinAddressLength)
-                Address = Remainder.Substring(0, 99);
+                Address = Remainder.Substring(0, 97);
 
             // Check that there is at least one mentioned user
             if (Address == "" && Context.Message.MentionedUsers.Count < 1) return;

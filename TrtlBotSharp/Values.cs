@@ -39,13 +39,13 @@ namespace TrtlBotSharp
 
         // Currency Variables
         public static string
-            coinName = "TurtleCoin",
-            coinSymbol = "TRTL",
-            coinAddressPrefix = "TRTL";
+            coinName = "traaitt",
+            coinSymbol = "XTE",
+            coinAddressPrefix = "XT";
         public static decimal
             coinUnits = 100;
         public static int
-            coinAddressLength = 99;
+            coinAddressLength = 97;
 
         // Tipping Variables
         public static decimal
